@@ -13,6 +13,17 @@ from src.models.enums import UserRole
 from src.models.user import UserCreate
 from src.core.security import hash_password
 
+"""
+FastAPI application entrypoint.
+
+This module:
+- Configures application metadata and OpenAPI tags
+- Sets CORS to allow frontend integration (localhost:3000 by default)
+- Seeds a default admin user for development
+- Registers all API routers (auth, users, rides, calendar, notifications, admin)
+- Exposes a health check and an OpenAPI JSON endpoint
+"""
+
 settings = get_settings()
 
 openapi_tags = [
@@ -31,9 +42,19 @@ app = FastAPI(
     openapi_tags=openapi_tags,
 )
 
+# Build allowed origins list:
+# - If CORS_ORIGINS is explicitly provided (not "*"), use those values plus localhost:3000
+# - Otherwise allow all for early-stage development
+_default_frontend = "http://localhost:3000"
+if settings.cors_origins and settings.cors_origins != ["*"]:
+    allowed = list({*settings.cors_origins, _default_frontend})
+else:
+    # When wildcard was provided or empty, still add wildcard to permit all
+    allowed = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins if settings.cors_origins != ["*"] else ["*"],
+    allow_origins=allowed,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -67,10 +88,21 @@ def on_startup():
     _seed_admin_user()
 
 
-# Register routers
+# Register routers (all current routers)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(rides_router)
 app.include_router(calendar_router)
 app.include_router(notifications_router)
 app.include_router(admin_router)
+
+
+@app.get(
+    "/openapi.json",
+    include_in_schema=False,
+    summary="OpenAPI Schema (JSON)",
+    tags=["Admin"],
+)
+def get_openapi_override():
+    """Return the current OpenAPI schema for tooling and frontend codegen."""
+    return app.openapi()

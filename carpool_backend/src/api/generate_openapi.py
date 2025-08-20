@@ -3,6 +3,14 @@ import os
 
 from src.api.main import app
 
+"""
+Utility script to regenerate the static OpenAPI specification.
+
+Usage:
+- Run `python -m src.api.generate_openapi` from the carpool_backend root.
+- This will write interfaces/openapi.json so the frontend can consume a stable spec file.
+"""
+
 # Get the OpenAPI schema
 openapi_schema = app.openapi()
 
