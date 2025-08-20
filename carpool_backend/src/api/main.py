@@ -8,6 +8,10 @@ from src.api.routers.rides import router as rides_router
 from src.api.routers.calendar import router as calendar_router
 from src.api.routers.notifications import router as notifications_router
 from src.api.routers.admin import router as admin_router
+from src.db.memory import db
+from src.models.enums import UserRole
+from src.models.user import UserCreate
+from src.core.security import hash_password
 
 settings = get_settings()
 
@@ -40,6 +44,27 @@ app.add_middleware(
 def health_check():
     """Simple health check endpoint to verify API is running."""
     return {"message": "Healthy"}
+
+
+def _seed_admin_user() -> None:
+    """Seed an admin account if none exists. Uses default credentials for MVP."""
+    # Check if an admin already exists
+    existing_admin = next((u for u in db.list_users() if u.role == UserRole.admin), None)
+    if existing_admin:
+        return
+    # Default seed values - for MVP/dev only
+    email = "admin@carpool.local"
+    full_name = "Admin User"
+    default_password = "admin123"
+    password_hash = hash_password(default_password)
+    payload = UserCreate(email=email, full_name=full_name, role=UserRole.admin, password=default_password)
+    db.create_user(payload, password_hash)
+
+
+# Startup event to seed admin
+@app.on_event("startup")
+def on_startup():
+    _seed_admin_user()
 
 
 # Register routers

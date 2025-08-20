@@ -3,9 +3,13 @@ import hmac
 import base64
 import json
 from datetime import datetime, timedelta
-from typing import Optional, Dict
+from typing import Optional, Dict, Callable
 
+from fastapi import HTTPException, status
 from src.core.config import get_settings
+from src.db.memory import db
+from src.models.enums import UserRole
+from src.models.user import UserPublic
 
 
 def _b64encode(data: bytes) -> str:
@@ -70,3 +74,38 @@ def decode_access_token(token: str) -> Optional[Dict]:
         return payload
     except Exception:
         return None
+
+
+# PUBLIC_INTERFACE
+def get_current_user_from_token(token: Optional[str]) -> Optional[UserPublic]:
+    """Decode token and return current UserPublic if valid."""
+    if not token:
+        return None
+    payload = decode_access_token(token)
+    if not payload:
+        return None
+    uid = payload.get("sub")
+    user = db.get_user(uid)
+    if not user:
+        return None
+    return UserPublic(id=user.id, email=user.email, full_name=user.full_name, role=user.role)
+
+
+# PUBLIC_INTERFACE
+def require_auth(token: Optional[str] = None) -> UserPublic:
+    """FastAPI dependency-like helper to enforce authentication using token query for MVP."""
+    user = get_current_user_from_token(token)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    return user
+
+
+# PUBLIC_INTERFACE
+def require_role(required: UserRole) -> Callable[..., UserPublic]:
+    """Return a callable that enforces the given role."""
+    def _inner(token: Optional[str] = None) -> UserPublic:
+        user = require_auth(token)
+        if user.role != required:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+        return user
+    return _inner

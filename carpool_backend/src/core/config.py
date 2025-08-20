@@ -5,7 +5,11 @@ import os
 
 
 class Settings(BaseModel):
-    """Application configuration settings sourced from environment variables."""
+    """Application configuration settings sourced from environment variables.
+
+    Important:
+    - SECRET_KEY: used for password hashing and token signing in MVP. Provide a strong value in production.
+    """
     app_name: str = Field(default="Carpool Backend API", description="Application name")
     environment: str = Field(default=os.getenv("ENV", "development"), description="Environment name")
     cors_origins: List[str] = Field(
