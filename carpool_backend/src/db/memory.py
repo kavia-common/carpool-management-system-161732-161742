@@ -18,6 +18,8 @@ class InMemoryDB:
         self.ride_offers: Dict[str, RideOffer] = {}
         self.ride_requests: Dict[str, RideRequest] = {}
         self.notifications: Dict[str, Notification] = {}
+        # Track seat allocations: offer_id -> total_confirmed_seats
+        self.offer_allocations: Dict[str, int] = {}
 
     # PUBLIC_INTERFACE
     def reset(self) -> None:
@@ -85,6 +87,7 @@ class InMemoryDB:
         offer_id = str(uuid.uuid4())
         offer = RideOffer(id=offer_id, **payload.model_dump())
         self.ride_offers[offer_id] = offer
+        self.offer_allocations[offer_id] = 0
         return offer
 
     # PUBLIC_INTERFACE
@@ -96,6 +99,12 @@ class InMemoryDB:
     def get_ride_offer(self, offer_id: str) -> Optional[RideOffer]:
         """Get a ride offer by ID."""
         return self.ride_offers.get(offer_id)
+
+    # PUBLIC_INTERFACE
+    def update_ride_offer(self, offer: RideOffer) -> RideOffer:
+        """Persist updates to a ride offer."""
+        self.ride_offers[offer.id] = offer
+        return offer
 
     # PUBLIC_INTERFACE
     def create_ride_request(self, payload: RideRequestCreate) -> RideRequest:
@@ -116,6 +125,12 @@ class InMemoryDB:
         return self.ride_requests.get(request_id)
 
     # PUBLIC_INTERFACE
+    def update_ride_request(self, request: RideRequest) -> RideRequest:
+        """Persist updates to a ride request."""
+        self.ride_requests[request.id] = request
+        return request
+
+    # PUBLIC_INTERFACE
     def add_notification(self, notif: Notification) -> Notification:
         """Add a notification."""
         self.notifications[notif.id] = notif
@@ -125,6 +140,21 @@ class InMemoryDB:
     def list_notifications_for_user(self, user_id: str) -> List[Notification]:
         """List notifications for a user."""
         return [n for n in self.notifications.values() if n.user_id == user_id]
+
+    # PUBLIC_INTERFACE
+    def get_allocated_seats(self, offer_id: str) -> int:
+        """Return number of seats allocated for an offer."""
+        return self.offer_allocations.get(offer_id, 0)
+
+    # PUBLIC_INTERFACE
+    def allocate_seats(self, offer_id: str, seats: int) -> None:
+        """Increase allocation for an offer."""
+        self.offer_allocations[offer_id] = self.get_allocated_seats(offer_id) + seats
+
+    # PUBLIC_INTERFACE
+    def release_seats(self, offer_id: str, seats: int) -> None:
+        """Decrease allocation for an offer."""
+        self.offer_allocations[offer_id] = max(0, self.get_allocated_seats(offer_id) - seats)
 
 
 # Singleton instance for app-wide use

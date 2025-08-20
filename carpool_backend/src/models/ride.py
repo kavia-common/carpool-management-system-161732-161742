@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field
 from src.models.enums import RideStatus, LocationPreset, TimeSlotPreset
 from src.models.common import EntityMeta
@@ -49,3 +49,9 @@ class RideRequest(RideRequestCreate):
     status: RideStatus = Field(default=RideStatus.pending, description="Request status")
     matched_offer_id: Optional[str] = Field(None, description="Matched ride offer ID if any")
     meta: EntityMeta = Field(default_factory=EntityMeta, description="Metadata timestamps")
+
+
+class RidesMeta(BaseModel):
+    """Static metadata for rides: available preset locations and time slots."""
+    locations: List[LocationPreset] = Field(..., description="Available preset locations")
+    time_slots: List[TimeSlotPreset] = Field(..., description="Available preset time slots")
